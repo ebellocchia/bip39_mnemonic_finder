@@ -102,6 +102,7 @@ VERBOSE: bool = True
 # Output
 OUT_FOLDER: str = "results"
 OUT_FILE_NAME: str = "results_st"
+OUT_FILE_NAME_MAX_NUM: int = 1000
 OUT_FILE_NAME_MAX_SIZE: int = 1024*1024*1024
 
 
@@ -149,7 +150,7 @@ def configure_logger() -> None:
     # Configure logger handler
     fh = logging.handlers.RotatingFileHandler(os.path.join(OUT_FOLDER, OUT_FILE_NAME),
                                               maxBytes=OUT_FILE_NAME_MAX_SIZE,
-                                              backupCount=10000)
+                                              backupCount=OUT_FILE_NAME_MAX_NUM)
     fh.setFormatter(logging.Formatter("%(message)s"))
     # Configure logger
     logging.getLogger("").setLevel(logging.DEBUG if VERBOSE else logging.INFO)

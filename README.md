@@ -54,6 +54,7 @@ To configure the application, just edit the configuration part on the top of the
 |`VERBOSE`|If true, all derived address will be written to the `OUT_FILE_NAME` file. If false, the mnemonic will be written only when the correct one is found.|
 |`OUT_FOLDER`|Output folder where the result files will be written to|
 |`OUT_FILE_NAME`|Output file name where results are written to|
+|`OUT_FILE_NAME_MAX_NUM`|Maximum number of output files to be created. When the number is reached, it'll start writing to the first file again. So, if `VERBOSE` is set to `True`, the maximum size of the result files will be `OUT_FILE_NAME_MAX_NUM*OUT_FILE_NAME_MAX_SIZE`.|
 |`OUT_FILE_NAME_MAX_SIZE`|Maximum size of the output file. When the size is reached, a new file will be created.|
 
 The multiprocessing application (i.e. `find_bip39_mnemonic_mp.py`) uses queues for inter-process communication, so there is some additional configuration:

@@ -27,7 +27,7 @@ import logging
 import logging.handlers
 import operator
 import multiprocessing
-import os.path
+import os
 import queue
 import shutil
 import time
@@ -107,6 +107,7 @@ VERBOSE: bool = True
 # Output
 OUT_FOLDER: str = "results"
 OUT_FILE_NAME: str = "results_mp"
+OUT_FILE_NAME_MAX_NUM: int = 1000
 OUT_FILE_NAME_MAX_SIZE: int = 1024*1024*1024
 
 
@@ -246,7 +247,7 @@ def logger_process_fct(stop_processing: multiprocessing.Value,
     # Configure logger handler
     fh = logging.handlers.RotatingFileHandler(os.path.join(OUT_FOLDER, OUT_FILE_NAME),
                                               maxBytes=OUT_FILE_NAME_MAX_SIZE,
-                                              backupCount=10000)
+                                              backupCount=OUT_FILE_NAME_MAX_NUM)
     fh.setFormatter(logging.Formatter("%(message)s"))
     # Configure logger
     logger = logging.getLogger("")
