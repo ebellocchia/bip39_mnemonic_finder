@@ -52,7 +52,9 @@ To configure the application, just edit the configuration part on the top of the
 |`MNEMONIC_WORDS`|List of possible words for each mnemonic word. The length of the list shall be a valid mnemonic length (e.g. 12, 25, 24). The default value is just an example, you shall modify it.|
 |`ADDRESSES_TO_SEARCH`|List of addresses to be searched. The addresses shall be related to the same mnemonic.|
 |`VERBOSE`|If true, all derived address will be written to the `OUT_FILE_NAME` file. If false, the mnemonic will be written only when the correct one is found.|
+|`OUT_FOLDER`|Output folder where the result files will be written to|
 |`OUT_FILE_NAME`|Output file name where results are written to|
+|`OUT_FILE_NAME_MAX_SIZE`|Maximum size of the output file. When the size is reached, a new file will be created.|
 
 The multiprocessing application (i.e. `find_bip39_mnemonic_mp.py`) uses queues for inter-process communication, so there is some additional configuration:
 

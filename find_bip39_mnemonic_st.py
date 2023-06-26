@@ -23,7 +23,11 @@
 #
 import functools
 import itertools
+import logging
+import logging.handlers
 import operator
+import os
+import shutil
 import time
 from typing import Any, Dict, List, TextIO, Tuple, Type
 
@@ -96,7 +100,9 @@ ADDRESSES_TO_SEARCH: Tuple[str, ...] = (
 VERBOSE: bool = True
 
 # Output
-OUT_FILE_NAME: str = "results_st.txt"
+OUT_FOLDER: str = "results"
+OUT_FILE_NAME: str = "results_st"
+OUT_FILE_NAME_MAX_SIZE: int = 1024*1024*1024
 
 
 #
@@ -136,27 +142,37 @@ def get_header() -> str:
 """
 
 
-def log(msg: str,
-        res_file: TextIO) -> None:
-    print(msg, file=res_file)
+def configure_logger() -> None:
+    # Create output folder
+    shutil.rmtree(OUT_FOLDER, ignore_errors=True)
+    os.makedirs(OUT_FOLDER, exist_ok=True)
+    # Configure logger handler
+    fh = logging.handlers.RotatingFileHandler(os.path.join(OUT_FOLDER, OUT_FILE_NAME),
+                                              maxBytes=OUT_FILE_NAME_MAX_SIZE,
+                                              backupCount=10000)
+    fh.setFormatter(logging.Formatter("%(message)s"))
+    # Configure logger
+    logging.getLogger("").setLevel(logging.DEBUG if VERBOSE else logging.INFO)
+    logging.getLogger("").addHandler(fh)
 
 
-def log_verbose(msg: str,
-                res_file: TextIO) -> None:
-    if VERBOSE:
-        print(msg, file=res_file)
+def log(msg: str) -> None:
+    logging.info(msg)
+
+
+def log_verbose(msg: str) -> None:
+    logging.debug(msg)
 
 
 def derive_bip32_addresses(mnemonic: Bip39Mnemonic,
-                           passphrase: str,
-                           res_file: TextIO) -> bool:
+                           passphrase: str) -> bool:
     if not BIP32_ENABLED:
         return False
 
-    log_verbose(f"Mnemonic: {mnemonic}, passphrase: {passphrase}", res_file)
+    log_verbose(f"Mnemonic: {mnemonic}, passphrase: {passphrase}")
 
     for path in BIP32_DERIVATION_PATHS:
-        log_verbose(f"  BIP32 Derivation path: {path}", res_file)
+        log_verbose(f"  BIP32 Derivation path: {path}")
 
         bip32_ctx = Bip32Slip10Secp256k1.FromSeedAndPath(
             Bip39SeedGenerator(mnemonic).Generate(passphrase),
@@ -167,58 +183,56 @@ def derive_bip32_addresses(mnemonic: Bip39Mnemonic,
                 bip32_ctx.DerivePath(str(i)).PublicKey().KeyObject(),
                 **BIP32_ADDR_ENCODER_PARAMS
             )
-            log_verbose(f"    BIP32 Address {i}: {addr}", res_file)
+            log_verbose(f"    BIP32 Address {i}: {addr}")
             if addr in ADDRESSES_TO_SEARCH:
-                log(f"    Found: {addr}, mnemonic: {mnemonic}, passphrase: {passphrase}", res_file)
+                log(f"    Found: {addr}, mnemonic: {mnemonic}, passphrase: {passphrase}")
                 return True
     return False
 
 
 def derive_bip44_addresses(mnemonic: Bip39Mnemonic,
-                           passphrase: str,
-                           res_file: TextIO) -> bool:
+                           passphrase: str) -> bool:
     if not BIP44_ENABLED:
         return False
 
-    log_verbose(f"Mnemonic: {mnemonic}, passphrase: {passphrase}", res_file)
+    log_verbose(f"Mnemonic: {mnemonic}, passphrase: {passphrase}")
 
     bip44_ctx = Bip44.FromSeed(
         Bip39SeedGenerator(mnemonic).Generate(passphrase),
         BIP44_COIN
     ).Purpose().Coin()
     for i in range(0, BIP44_ACCOUNTS_NUM):
-        log_verbose(f"  BIP44 Account: {i}", res_file)
+        log_verbose(f"  BIP44 Account: {i}")
 
         bip44_chg_ctx = bip44_ctx.Account(i).Change(BIP44_CHANGE)
         for j in range(0, BIP44_ADDRESSES_NUM):
             addr = bip44_chg_ctx.AddressIndex(j).PublicKey().ToAddress()
-            log_verbose(f"    BIP44 Address {j}: {addr}", res_file)
+            log_verbose(f"    BIP44 Address {j}: {addr}")
             if addr in ADDRESSES_TO_SEARCH:
-                log(f"    Found: {addr}, mnemonic: {mnemonic}, passphrase: {passphrase}", res_file)
+                log(f"    Found: {addr}, mnemonic: {mnemonic}, passphrase: {passphrase}")
                 return True
     return False
 
 
-def check_mnemonic(mnemonic: Bip39Mnemonic,
-                   res_file: TextIO) -> bool:
+def check_mnemonic(mnemonic: Bip39Mnemonic) -> bool:
     try:
         Bip39MnemonicDecoder(Bip39Languages.ENGLISH).Decode(mnemonic)
     except MnemonicChecksumError:
         pass
     else:
         for passphrase in MNEMONIC_PASSPHRASES:
-            if derive_bip32_addresses(mnemonic, passphrase, res_file):
+            if derive_bip32_addresses(mnemonic, passphrase):
                 return True
-            if derive_bip44_addresses(mnemonic, passphrase, res_file):
+            if derive_bip44_addresses(mnemonic, passphrase):
                 return True
 
     return False
 
 
-def find_mnemonic(res_file: TextIO) -> None:
+def find_mnemonic() -> None:
     for mnemonic_list in itertools.product(*MNEMONIC_WORDS):
         mnemonic = Bip39Mnemonic.FromList(mnemonic_list)
-        if check_mnemonic(mnemonic, res_file):
+        if check_mnemonic(mnemonic):
             print(f"  Found: {mnemonic}")
             return
 
@@ -226,7 +240,7 @@ def find_mnemonic(res_file: TextIO) -> None:
 #
 # Main
 #
-def main(res_file: TextIO) -> None:
+def main() -> None:
     total_addresses = get_total_addresses()
 
     print(get_header())
@@ -235,6 +249,8 @@ def main(res_file: TextIO) -> None:
     input("Press a key to start")
     print("")
 
+    configure_logger()
+
     if total_addresses == 0:
         print("No address to check, exiting...")
         return
@@ -242,17 +258,16 @@ def main(res_file: TextIO) -> None:
     start_time = time.time()
 
     if MNEMONIC_FIXED != "":
-        check_mnemonic(Bip39Mnemonic.FromString(MNEMONIC_FIXED), res_file)
+        check_mnemonic(Bip39Mnemonic.FromString(MNEMONIC_FIXED))
     else:
         print("Processing...")
-        find_mnemonic(res_file)
+        find_mnemonic()
 
     print(f"Elapsed time: {time.time() - start_time:.2f} sec")
 
 
 if __name__ == "__main__":
     try:
-        with open(OUT_FILE_NAME, "w") as file_out:
-            main(file_out)
+        main()
     except KeyboardInterrupt:
         print("Exiting...")

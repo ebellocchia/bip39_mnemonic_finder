@@ -23,9 +23,13 @@
 #
 import functools
 import itertools
+import logging
+import logging.handlers
 import operator
 import multiprocessing
+import os.path
 import queue
+import shutil
 import time
 from typing import Any, Dict, List, Tuple, Type
 
@@ -101,7 +105,9 @@ PROCESS_NUM: int = 4
 VERBOSE: bool = True
 
 # Output
-OUT_FILE_NAME: str = "results_mp.txt"
+OUT_FOLDER: str = "results"
+OUT_FILE_NAME: str = "results_mp"
+OUT_FILE_NAME_MAX_SIZE: int = 1024*1024*1024
 
 
 #
@@ -234,15 +240,27 @@ def logger_process_fct(stop_processing: multiprocessing.Value,
                        logger_queue: multiprocessing.JoinableQueue) -> None:
     print(f"Logger process started")
 
-    with open(OUT_FILE_NAME, "w") as file_out:
-        while not stop_processing.value:
-            try:
-                msg = logger_queue.get(timeout=1)
-            except queue.Empty:
-                pass
-            else:
-                print(msg, file=file_out)
-                logger_queue.task_done()
+    # Create output folder
+    shutil.rmtree(OUT_FOLDER, ignore_errors=True)
+    os.makedirs(OUT_FOLDER, exist_ok=True)
+    # Configure logger handler
+    fh = logging.handlers.RotatingFileHandler(os.path.join(OUT_FOLDER, OUT_FILE_NAME),
+                                              maxBytes=OUT_FILE_NAME_MAX_SIZE,
+                                              backupCount=10000)
+    fh.setFormatter(logging.Formatter("%(message)s"))
+    # Configure logger
+    logger = logging.getLogger("")
+    logger.setLevel(logging.INFO)
+    logger.addHandler(fh)
+
+    while not stop_processing.value:
+        try:
+            msg = logger_queue.get(timeout=1)
+        except queue.Empty:
+            pass
+        else:
+            logger.info(msg)
+            logger_queue.task_done()
 
     print(f"Logger process exited")
 
@@ -347,7 +365,6 @@ def check_all_mnemonics() -> None:
     for mnemonic_check_process in mnemonic_check_processes:
         mnemonic_check_process.join()
     logger_process.join()
-
 
 
 #
